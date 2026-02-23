@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyEkonomi — Malaysia Economic Dashboard</title>
+<meta name="description" content="Live Malaysia economic data dashboard powered by OpenDOSM — GDP, labour, CPI, fuel prices, trade and more.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #07101f;
+  --surface: #0c1929;
+  --card: rgba(255,255,255,0.04);
+  --card-hover: rgba(255,255,255,0.07);
+  --border: rgba(201,168,76,0.18);
+  --border-s: rgba(255,255,255,0.07);
+  --gold: #c9a84c;
+  --gold-l: #f2d77e;
+  --teal: #14b8a6;
+  --teal-l: #5eead4;
+  --green: #22c55e;
+  --green-l: #4ade80;
+  --red: #ef4444;
+  --red-l: #f87171;
+  --blue: #3b82f6;
+  --blue-l: #93c5fd;
+  --purple: #a855f7;
+  --text: #e2e8f0;
+  --text-s: #94a3b8;
+  --text-xs: #64748b;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* BG grid */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 80% 50% at 10% 0%,rgba(20,184,166,.06),transparent),
+             radial-gradient(ellipse 60% 40% at 90% 100%,rgba(201,168,76,.05),transparent),
+             repeating-linear-gradient(rgba(255,255,255,.015) 0,rgba(255,255,255,.015) 1px,transparent 1px,transparent 64px),
+             repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0,rgba(255,255,255,.015) 1px,transparent 1px,transparent 64px);}
+
+/* ── HEADER ── */
+header{position:relative;z-index:30;display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;border-bottom:1px solid var(--border);background:rgba(7,16,31,.92);backdrop-filter:blur(16px)}
+.brand{display:flex;align-items:center;gap:14px}
+.flag{width:44px;height:28px;border-radius:4px;overflow:hidden;flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,.5);
+  background:repeating-linear-gradient(to bottom,#cc0001 0,#cc0001 2px,#fff 2px,#fff 4px);position:relative}
+.flag::before{content:'';position:absolute;top:0;left:0;width:19px;height:15px;background:#010066}
+.brand-name{font-family:'Playfair Display',serif;font-size:1.55rem;font-weight:900;color:var(--gold);letter-spacing:-.02em}
+.brand-tagline{font-size:.65rem;color:var(--text-xs);text-transform:uppercase;letter-spacing:.15em;margin-top:1px}
+.hdr-actions{display:flex;align-items:center;gap:.8rem}
+.live-pill{display:flex;align-items:center;gap:5px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);color:var(--green);font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:5px 12px;border-radius:20px}
+.live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:blink 1.8s ease infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.8)}}
+.btn-src{font-size:.7rem;color:var(--text-xs);text-decoration:none;border:1px solid var(--border-s);padding:6px 13px;border-radius:7px;transition:all .2s;white-space:nowrap}
+.btn-src:hover{color:var(--gold);border-color:var(--border);background:rgba(201,168,76,.05)}
+
+/* ── KPI STRIP ── */
+.kpi-strip{position:relative;z-index:10;display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--border-s)}
+.kpi{padding:1.1rem 1.4rem;border-right:1px solid var(--border-s);cursor:default;transition:background .2s}
+.kpi:last-child{border-right:none}
+.kpi:hover{background:rgba(255,255,255,.02)}
+.kpi-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.13em;color:var(--text-xs);margin-bottom:.35rem}
+.kpi-value{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;line-height:1;margin-bottom:.2rem}
+.kpi-sub{font-size:.68rem;font-weight:500}
+.up{color:var(--green-l)}.dn{color:var(--red-l)}.nu{color:var(--text-xs)}
+
+/* ── TABS ── */
+.tabs-bar{position:sticky;top:0;z-index:25;background:rgba(7,16,31,.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-s)}
+.tabs{display:flex;overflow-x:auto;padding:0 1.5rem;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{display:flex;align-items:center;gap:7px;padding:.85rem 1.2rem;background:none;border:none;cursor:pointer;color:var(--text-s);font-family:'Inter',sans-serif;font-size:.8rem;font-weight:500;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s;position:relative;top:1px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.tab-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 2s ease infinite;display:none}
+.tab.live .tab-dot{display:inline-block}
+
+/* ── PANEL ── */
+.panel{display:none;position:relative;z-index:5;animation:rise .3s ease}
+.panel.on{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.wrap{padding:1.8rem 2rem}
+
+/* ── SECTION HEAD ── */
+.sh{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.6rem;gap:1rem;flex-wrap:wrap}
+.sh-left h2{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;margin-bottom:.4rem}
+.sh-left p{font-size:.82rem;color:var(--text-s);max-width:600px;line-height:1.6}
+.sh-right{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.badge{padding:4px 11px;border-radius:20px;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;border:1px solid;white-space:nowrap}
+.bg-g{background:rgba(34,197,94,.08);color:var(--green);border-color:rgba(34,197,94,.22)}
+.bg-a{background:rgba(201,168,76,.08);color:var(--gold);border-color:rgba(201,168,76,.22)}
+.bg-b{background:rgba(59,130,246,.08);color:var(--blue);border-color:rgba(59,130,246,.22)}
+.src{font-size:.65rem;color:var(--text-xs);background:var(--card);border:1px solid var(--border-s);padding:4px 9px;border-radius:6px}
+
+/* ── GRID ── */
+.g{display:grid;gap:1rem;margin-bottom:1rem}
+.c2{grid-template-columns:1fr 1fr}
+.c3{grid-template-columns:repeat(3,1fr)}
+.c4{grid-template-columns:repeat(4,1fr)}
+.span2{grid-column:span 2}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border-s);border-radius:11px;padding:1.3rem;transition:all .25s;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--gold),transparent);opacity:0;transition:.25s}
+.card:hover{background:var(--card-hover);border-color:rgba(201,168,76,.25);transform:translateY(-2px)}
+.card:hover::before{opacity:1}
+.c-label{font-size:.63rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-xs);margin-bottom:.5rem}
+.c-value{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;line-height:1;margin-bottom:.35rem}
+.c-note{font-size:.77rem;color:var(--text-s);line-height:1.55}
+.c-change{font-size:.73rem;font-weight:600;margin-top:.25rem}
+
+/* ── CHART CARD ── */
+.cc{background:var(--card);border:1px solid var(--border-s);border-radius:11px;padding:1.3rem;position:relative}
+.cc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem}
+.cc-title{font-size:.85rem;font-weight:600;color:var(--text)}
+.cc-meta{display:flex;align-items:center;gap:.5rem}
+.cw{position:relative}
+
+/* loading overlay */
+.lo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;background:rgba(7,16,31,.8);border-radius:11px;z-index:5;font-size:.78rem;color:var(--text-s)}
+.lo.h{display:none}
+.lo-err{color:var(--red-l);font-size:.75rem;text-align:center}
+
+/* spinner */
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--gold);border-radius:50%;animation:rot .8s linear infinite;vertical-align:middle}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* progress bars */
+.prog-item{margin-bottom:.9rem}
+.prog-head{display:flex;justify-content:space-between;margin-bottom:.35rem}
+.prog-name{font-size:.8rem;font-weight:500}
+.prog-val{font-size:.8rem;font-weight:600;color:var(--gold-l)}
+.prog-track{height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;width:0;transition:width 1.4s cubic-bezier(.4,0,.2,1)}
+.pG{background:linear-gradient(90deg,var(--green),var(--green-l))}
+.pT{background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.pA{background:linear-gradient(90deg,var(--gold),var(--gold-l))}
+.pR{background:linear-gradient(90deg,var(--red),var(--red-l))}
+.pB{background:linear-gradient(90deg,var(--blue),var(--blue-l))}
+.pP{background:linear-gradient(90deg,var(--purple),#d8b4fe)}
+
+/* pills */
+.pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem}
+.pill{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:.72rem;font-weight:500;border:1px solid}
+.pl-g{border-color:rgba(34,197,94,.3);color:var(--green);background:rgba(34,197,94,.07)}
+.pl-a{border-color:rgba(201,168,76,.3);color:var(--gold);background:rgba(201,168,76,.07)}
+.pl-r{border-color:rgba(239,68,68,.3);color:var(--red);background:rgba(239,68,68,.07)}
+.pl-b{border-color:rgba(59,130,246,.3);color:var(--blue);background:rgba(59,130,246,.07)}
+.pdot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* info block */
+.ib{background:var(--card);border:1px solid var(--border-s);border-radius:11px;padding:1.3rem}
+.ib h3{font-size:.87rem;font-weight:600;color:var(--gold-l);margin-bottom:.65rem}
+.ib p{font-size:.8rem;color:var(--text-s);line-height:1.7}
+
+/* table */
+.tbl-wrap{overflow:auto;max-height:230px}
+.tbl{width:100%;border-collapse:collapse;font-size:.79rem}
+.tbl th{text-align:left;padding:.55rem .9rem;font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-xs);border-bottom:1px solid var(--border-s);font-weight:600;position:sticky;top:0;background:var(--surface)}
+.tbl td{padding:.6rem .9rem;border-bottom:1px solid rgba(255,255,255,.03)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(255,255,255,.02)}
+
+/* fuel price cards */
+.fuel-card{background:var(--card);border:1px solid var(--border-s);border-radius:11px;padding:1.3rem;text-align:center}
+.fuel-type{font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-xs);margin-bottom:.5rem}
+.fuel-price{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:700;color:var(--gold)}
+.fuel-unit{font-size:.72rem;color:var(--text-s);margin-top:.25rem}
+.fuel-date{font-size:.68rem;color:var(--text-xs);margin-top:.3rem}
+
+/* data status tag */
+.dst{font-size:.65rem;color:var(--text-xs);display:flex;align-items:center;gap:5px}
+.dst.ok{color:var(--green)}
+.dst.err{color:var(--red-l)}
+
+/* FOOTER */
+footer{position:relative;z-index:5;border-top:1px solid var(--border-s);padding:1.2rem 2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}
+footer p{font-size:.68rem;color:var(--text-xs)}
+footer a{color:var(--gold);text-decoration:none}
+footer a:hover{text-decoration:underline}
+.sync-info{display:flex;align-items:center;gap:.5rem}
+
+/* about box */
+.about-hero{background:linear-gradient(135deg,rgba(20,184,166,.08),rgba(201,168,76,.08));border:1px solid var(--border);border-radius:14px;padding:2rem;margin-bottom:1rem}
+.about-hero h1{font-family:'Playfair Display',serif;font-size:2rem;font-weight:900;margin-bottom:.6rem}
+.about-hero h1 em{font-style:normal;color:var(--gold)}
+.about-hero p{font-size:.87rem;color:var(--text-s);line-height:1.7;max-width:700px}
+.dataset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-top:1rem}
+.ds-card{background:var(--card);border:1px solid var(--border-s);border-radius:9px;padding:1rem}
+.ds-card h4{font-size:.8rem;font-weight:600;margin-bottom:.3rem;color:var(--text)}
+.ds-card p{font-size:.72rem;color:var(--text-s)}
+.ds-card .ds-id{font-size:.65rem;color:var(--teal);font-family:monospace;margin-top:.4rem}
+
+@media(max-width:1100px){.c4{grid-template-columns:1fr 1fr}.kpi-strip{grid-template-columns:repeat(3,1fr)}.kpi:nth-child(4){border-top:1px solid var(--border-s)}.dataset-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){header{padding:.9rem 1.2rem}.btn-src{display:none}.kpi-strip{grid-template-columns:repeat(2,1fr)}.wrap{padding:1.2rem}.c3,.c2{grid-template-columns:1fr}.span2{grid-column:1}.dataset-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.c4{grid-template-columns:1fr}.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="brand">
+    <div class="flag"></div>
+    <div>
+      <div class="brand-name">MyEkonomi</div>
+      <div class="brand-tagline">Malaysia Economic Status Portal</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <div class="live-pill"><span class="live-dot"></span> Live · DOSM API</div>
+    <a class="btn-src" href="https://open.dosm.gov.my/data-catalogue" target="_blank" rel="noopener">📊 Open Data Source ↗</a>
+  </div>
+</header>
+
+<!-- KPI STRIP -->
+<div class="kpi-strip">
+  <div class="kpi">
+    <div class="kpi-label">GDP Growth</div>
+    <div class="kpi-value" id="k-gdp" style="color:var(--green)"><span class="spin"></span></div>
+    <div class="kpi-sub up" id="k-gdp-s">Loading…</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Leading Index</div>
+    <div class="kpi-value" id="k-lead" style="color:var(--gold)"><span class="spin"></span></div>
+    <div class="kpi-sub nu" id="k-lead-s">Loading…</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Unemployment</div>
+    <div class="kpi-value" id="k-unemp" style="color:var(--blue-l)"><span class="spin"></span></div>
+    <div class="kpi-sub nu" id="k-unemp-s">Loading…</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">LFP Rate</div>
+    <div class="kpi-value" id="k-lfp" style="color:var(--teal-l)"><span class="spin"></span></div>
+    <div class="kpi-sub nu" id="k-lfp-s">Loading…</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">RON95 Price</div>
+    <div class="kpi-value" id="k-fuel" style="color:var(--gold-l)"><span class="spin"></span></div>
+    <div class="kpi-sub nu" id="k-fuel-s">Loading…</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Coincident Index</div>
+    <div class="kpi-value" id="k-coin" style="color:var(--purple)"><span class="spin"></span></div>
+    <div class="kpi-sub nu" id="k-coin-s">Loading…</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <div class="tabs">
+    <button class="tab on" data-p="overview">🏛️ Overview</button>
+    <button class="tab live" data-p="gdp"><span class="tab-dot"></span> 📈 GDP & Growth</button>
+    <button class="tab live" data-p="labour"><span class="tab-dot"></span> 💼 Labour Force</button>
+    <button class="tab live" data-p="prices"><span class="tab-dot"></span> 🛒 Prices & Fuel</button>
+    <button class="tab live" data-p="indicators"><span class="tab-dot"></span> 📊 Indicators</button>
+    <button class="tab" data-p="healthcare">🏥 Healthcare</button>
+    <button class="tab" data-p="trade">🚢 Trade</button>
+    <button class="tab" data-p="about">ℹ️ About</button>
+  </div>
+</div>
+
+<!-- ═══════ OVERVIEW ═══════ -->
+<div class="panel on" id="panel-overview">
+  <div class="wrap">
+    <div class="about-hero">
+      <h1>Malaysia's Economy <em>at a Glance</em></h1>
+      <p>A public dashboard powered entirely by <strong style="color:var(--gold)">live data from OpenDOSM</strong> — the official open data portal of the Department of Statistics Malaysia. Browse any tab to explore GDP, labour force, prices, fuel costs, and leading economic indicators — all updated automatically from real government data.</p>
+      <div class="pills" style="margin-top:1.2rem">
+        <span class="pill pl-g"><span class="pdot"></span> GDP +5.1% (2024)</span>
+        <span class="pill pl-g"><span class="pdot"></span> Record FDI 2024</span>
+        <span class="pill pl-g"><span class="pdot"></span> 3rd Semiconductor Exporter</span>
+        <span class="pill pl-a"><span class="pdot"></span> Near High-Income Nation</span>
+        <span class="pill pl-a"><span class="pdot"></span> Subsidy Reform Underway</span>
+        <span class="pill pl-b"><span class="pdot"></span> SE Asia AI Hub</span>
+      </div>
+    </div>
+
+    <div class="g c4">
+      <div class="card">
+        <div class="c-label">Nominal GDP (2024)</div>
+        <div class="c-value" style="color:var(--green)">~USD 422B</div>
+        <div class="c-note">Largest economy in ASEAN after Indonesia, Thailand & Philippines.</div>
+      </div>
+      <div class="card">
+        <div class="c-label">GDP per Capita</div>
+        <div class="c-value" style="color:var(--teal-l)">USD 11,649</div>
+        <div class="c-note">Approaching World Bank high-income threshold of USD 13,846.</div>
+      </div>
+      <div class="card">
+        <div class="c-label">Global Competitiveness</div>
+        <div class="c-value" style="color:var(--gold)">#23</div>
+        <div class="c-note">IMD World Competitiveness 2024. 2nd in ASEAN after Singapore.</div>
+      </div>
+      <div class="card">
+        <div class="c-label">Trade Surplus (2024)</div>
+        <div class="c-value" style="color:var(--blue-l)">RM 136B</div>
+        <div class="c-note">26th consecutive year of trade surplus. Exports dominated by E&E products.</div>
+      </div>
+    </div>
+
+    <div class="g c3">
+      <div class="ib">
+        <h3>🏭 Economic Sectors</h3>
+        <div style="margin-top:.5rem">
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Services</span><span class="prog-val">56%</span></div><div class="prog-track"><div class="prog-fill pT" data-w="56"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Manufacturing</span><span class="prog-val">23%</span></div><div class="prog-track"><div class="prog-fill pA" data-w="23"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Mining & Energy</span><span class="prog-val">8%</span></div><div class="prog-track"><div class="prog-fill pR" data-w="8"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Agriculture</span><span class="prog-val">7%</span></div><div class="prog-track"><div class="prog-fill pG" data-w="7"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Construction</span><span class="prog-val">4%</span></div><div class="prog-track"><div class="prog-fill pB" data-w="4"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Other</span><span class="prog-val">2%</span></div><div class="prog-track"><div class="prog-fill pP" data-w="2"></div></div></div>
+        </div>
+      </div>
+      <div class="ib">
+        <h3>✅ Strengths</h3>
+        <div class="pills">
+          <span class="pill pl-g"><span class="pdot"></span> Strong FDI flows</span>
+          <span class="pill pl-g"><span class="pdot"></span> Low inflation</span>
+          <span class="pill pl-g"><span class="pdot"></span> Subsidised healthcare</span>
+          <span class="pill pl-g"><span class="pdot"></span> Semiconductor hub</span>
+          <span class="pill pl-g"><span class="pdot"></span> Trade surplus streak</span>
+          <span class="pill pl-g"><span class="pdot"></span> High LFP rate</span>
+          <span class="pill pl-b"><span class="pdot"></span> Madani Economy Plan</span>
+        </div>
+      </div>
+      <div class="ib">
+        <h3>⚠️ Challenges</h3>
+        <div class="pills">
+          <span class="pill pl-r"><span class="pdot"></span> Low tax-to-GDP ratio</span>
+          <span class="pill pl-r"><span class="pdot"></span> Rural-urban divide</span>
+          <span class="pill pl-r"><span class="pdot"></span> Youth unemployment</span>
+          <span class="pill pl-a"><span class="pdot"></span> Skills mismatch</span>
+          <span class="pill pl-a"><span class="pdot"></span> Subsidy reform pressure</span>
+          <span class="pill pl-a"><span class="pdot"></span> Ringgit volatility</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ GDP ═══════ -->
+<div class="panel" id="panel-gdp">
+  <div class="wrap">
+    <div class="sh">
+      <div class="sh-left">
+        <h2>📈 GDP & Economic Growth</h2>
+        <p>Annual Gross Domestic Product (nominal & real) from DOSM. Malaysia's GDP data goes back to 1947.</p>
+      </div>
+      <div class="sh-right">
+        <span class="badge bg-g">Live Data</span>
+        <span class="src">gdp_gni_annual_real · gdp_gni_annual_nominal</span>
+      </div>
+    </div>
+
+    <div class="g c4">
+      <div class="card">
+        <div class="c-label">Latest Nominal GDP</div>
+        <div class="c-value" id="gdp-nom" style="color:var(--green)"><span class="spin"></span></div>
+        <div class="c-note" id="gdp-nom-note">Fetching from DOSM…</div>
+      </div>
+      <div class="card">
+        <div class="c-label">Real GDP (2015 prices)</div>
+        <div class="c-value" id="gdp-real" style="color:var(--teal-l)"><span class="spin"></span></div>
+        <div class="c-note" id="gdp-real-note">Chain-linked 2015 constant prices</div>
+      </div>
+      <div class="card">
+        <div class="c-label">Nominal GNI</div>
+        <div class="c-value" id="gni-nom" style="color:var(--gold)"><span class="spin"></span></div>
+        <div class="c-note" id="gni-nom-note">GDP + net factor incomes from abroad</div>
+      </div>
+      <div class="card">
+        <div class="c-label">GNI per Capita</div>
+        <div class="c-value" id="gni-cap" style="color:var(--blue-l)"><span class="spin"></span></div>
+        <div class="c-note" id="gni-cap-note">Key threshold for high-income classification</div>
+      </div>
+    </div>
+
+    <div class="g c2">
+      <div class="cc">
+        <div class="cc-head">
+          <span class="cc-title">Nominal GDP — Annual (RM Million)</span>
+          <span class="dst" id="gdp-st"><span class="spin"></span> Loading…</span>
+        </div>
+        <div class="cw" style="height:260px">
+          <div class="lo" id="lo-gdp-nom"><span class="spin"></span>Fetching GDP data…</div>
+          <canvas id="ch-gdp-nom"></canvas>
+        </div>
+      </div>
+      <div class="cc">
+        <div class="cc-head">
+          <span class="cc-title">Real GDP Growth Rate (%)</span>
+          <span class="dst" id="gdp-real-st"><span class="spin"></span> Loading…</span>
+        </div>
+        <div class="cw" style="height:260px">
+          <div class="lo" id="lo-gdp-real"><span class="spin"></span>Fetching real GDP…</div>
+          <canvas id="ch-gdp-real"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="cc">
+      <div class="cc-head">
+        <span class="cc-title">Historical GDP & GNI — Full Table (Latest 20 Years)</span>
+        <span class="dst" id="gdp-tbl-st"><span class="spin"></span></span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Year</th><th>Nominal GDP (RM M)</th><th>Real GDP (RM M)</th><th>Nominal GNI (RM M)</th><th>GNI per Capita (RM)</th></tr></thead>
+          <tbody id="gdp-tbody"><tr><td colspan="5" style="color:var(--text-xs);padding:1rem;text-align:center"><span class="spin"></span> Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ LABOUR ═══════ -->
+<div class="panel" id="panel-labour">
+  <div class="wrap">
+    <div class="sh">
+      <div class="sh-left">
+        <h2>💼 Labour Force</h2>
+        <p>Monthly principal labour force statistics from DOSM — unemployment rate, labour force participation, and employed persons.</p>
+      </div>
+      <div class="sh-right">
+        <span class="badge bg-g">Live Data</span>
+        <span class="src">lfs_month · api.data.gov.my</span>
+      </div>
+    </div>
+
+    <div class="g c4">
+      <div class="card">
+        <div class="c-label">Unemployment Rate</div>
+        <div class="c-value" id="lab-unemp" style="color:var(--green)"><span class="spin"></span></div>
+        <div class="c-note" id="lab-unemp-note">Latest monthly figure from DOSM LFS</div>
+      </div>
+      <div class="card">
+        <div class="c-label">Labour Force (M)</div>
+        <div class="c-value" id="lab-lf" style="color:var(--teal-l)"><span class="spin"></span></div>
+        <div class="c-note" id="lab-lf-note">Total labour force in thousands</div>
+      </div>
+      <div class="card">
+        <div class="c-label">LFP Rate</div>
+        <div class="c-value" id="lab-lfp" style="color:var(--gold)"><span class="spin"></span></div>
+        <div class="c-note" id="lab-lfp-note">Labour force participation rate</div>
+      </div>
+      <div class="card">
+        <div class="c-label">Employed Persons</div>
+        <div class="c-value" id="lab-emp" style="color:var(--blue-l)"><span class="spin"></span></div>
+        <div class="c-note" id="lab-emp-note">Total employed in thousands</div>
+      </div>
+    </div>
+
+    <div class="g c2">
+      <div class="cc">
+        <div class="cc-head">
+          <span class="cc-title">Monthly Unemployment Rate (%)</span>
+          <span class="dst" id="lab-st"><span class="spin"></span> Loading…</span>
+        </div>
+        <div class="cw" style="height:240px">
+          <div class="lo" id="lo-lab"><span class="spin"></span>Fetching labour data…</div>
+          <canvas id="ch-unemp"></canvas>
+        </div>
+      </div>
+      <div class="cc">
+        <div class="cc-head">
+          <span class="cc-title">Monthly Labour Force Participation Rate (%)</span>
+        </div>
+        <div class="cw" style="height:240px">
+          <div class="lo" id="lo-lfp"><span class="spin"></span></div>
+          <canvas id="ch-lfp"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="g c2">
+      <div class="cc">
+        <div class="cc-head"><span class="cc-title">Total Employed Persons (Thousands) — Monthly</span></div>
+        <div class="cw" style="height:200px">
+          <div class="lo" id="lo-emp-ts"><span class="spin"></span></div>
+          <canvas id="ch-emp-ts"></canvas>
+        </div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><span class="cc-title">Latest Labour Data Table (12 months)</span></div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Month</th><th>Unemp %</th><th>LFP %</th><th>Employed (000s)</th><th>Labour Force (000s)</th></tr></thead>
+            <tbody id="lab-tbody"><tr><td colspan="5" style="color:var(--text-xs);padding:1rem;text-align:center"><span class="spin"></span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="g c2">
+      <div class="ib">
+        <h3>Labour Market Strengths</h3>
+        <div class="pills">
+          <span class="pill pl-g"><span class="pdot"></span> Unemployment near 5-yr low</span>
+          <span class="pill pl-g"><span class="pdot"></span> Strong services employment</span>
+          <span class="pill pl-g"><span class="pdot"></span> AI & tech job growth</span>
+          <span class="pill pl-g"><span class="pdot"></span> Green economy jobs rising</span>
+        </div>
+      </div>
+      <div class="ib">
+        <h3>Key Challenges</h3>
+        <div class="pills">
+          <span class="pill pl-r"><span class="pdot"></span> Youth unemployment ~10%</span>
+          <span class="pill pl-a"><span class="pdot"></span> Low female LFP (~55%)</span>
+          <span class="pill pl-r"><span class="pdot"></span> Skill mismatch (graduates)</span>
+          <span class="pill pl-a"><span class="pdot"></span> Foreign worker dependence</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ PRICES ═══════ -->
+<div class="panel" id="panel-prices">
+  <div class="wrap">
+    <div class="sh">
+      <div class="sh-left">
+        <h2>🛒 Prices, CPI & Fuel</h2>
+        <p>Weekly fuel prices (RON95, RON97, Diesel) and monthly CPI inflation — fetched live from DOSM & data.gov.my.</p>
+      </div>
+      <div class="sh-right">
+        <span class="badge bg-g">Live Data</span>
+        <span class="src">fuelprice · cpi_core_inflation</span>
+      </div>
+    </div>
+
+    <!-- Fuel -->
+    <div style="margin-bottom:.5rem;font-size:.75rem;color:var(--text-xs);display:flex;align-items:center;gap:.5rem">
+      <span>⛽ Weekly Fuel Prices</span>
+      <span class="dst" id="fuel-st"><span class="spin"></span> Fetching…</span>
+    </div>
+    <div class="g c3" style="margin-bottom:1.5rem" id="fuel-cards">
+      <div class="fuel-card"><div class="fuel-type">RON 95</div><div class="fuel-price" id="f-95"><span class="spin"></span></div><div class="fuel-unit">RM per litre</div><div class="fuel-date" id="f-95-d">—</div></div>
+      <div class="fuel-card"><div class="fuel-type">RON 97</div><div class="fuel-price" id="f-97"><span class="spin"></span></div><div class="fuel-unit">RM per litre</div><div class="fuel-date" id="f-97-d">—</div></div>
+      <div class="fuel-card"><div class="fuel-type">Diesel</div><div class="fuel-price" id="f-die"><span class="spin"></span></div><div class="fuel-unit">RM per litre</div><div class="fuel-date" id="f-die-d">—</div></div>
+    </div>
+
+    <div class="g c2">
+      <div class="cc">
+        <div class="cc-head">
+          <span class="cc-title">RON95 Price — Weekly Trend</span>
+          <span class="dst" id="fuel-chart-st"><span class="spin"></span></span>
+        </div>
+        <div class="cw" style="height:220px">
+          <div class="lo" id="lo-fuel"><span class="spin"></span>Loading fuel prices…</div>
+          <canvas id="ch-fuel"></canvas>
+        </div>
+      </div>
+      <div class="cc">
+        <div class="cc-head">
+          <span class="cc-title">Core CPI Inflation (%)</span>
+          <span class="dst" id="cpi-st"><span class="spin"></span></span>
+        </div>
+        <div class="cw" style="height:220px">
+          <div class="lo" id="lo-cpi"><span class="spin"></span>Loading CPI data…</div>
+          <canvas id="ch-cpi"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="g c2">
+      <div class="ib">
+        <h3>Why Is Malaysia's Inflation Low?</h3>
+        <p>Malaysia historically keeps CPI low through widespread fuel, electricity, and food subsidies — costing ~RM 80B/year. The ongoing <strong style="color:var(--gold-l)">RON95 subsidy rationalisation</strong> introduced in 2024 will gradually shift to targeted subsidies, which may push inflation modestly higher. Bank Negara's OPR is held at 3.00% to balance growth and price stability.</p>
+      </div>
+      <div class="ib">
+        <h3>CPI Category Pressure Points (2024 est.)</h3>
+        <div style="margin-top:.5rem">
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Food & Beverages</span><span class="prog-val">3.5%</span></div><div class="prog-track"><div class="prog-fill pR" data-w="70"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Health</span><span class="prog-val">2.5%</span></div><div class="prog-track"><div class="prog-fill pT" data-w="50"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Housing & Utilities</span><span class="prog-val">2.1%</span></div><div class="prog-track"><div class="prog-fill pB" data-w="42"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Transport</span><span class="prog-val">1.0%</span></div><div class="prog-track"><div class="prog-fill pA" data-w="20"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Education</span><span class="prog-val">0.8%</span></div><div class="prog-track"><div class="prog-fill pG" data-w="16"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ INDICATORS ═══════ -->
+<div class="panel" id="panel-indicators">
+  <div class="wrap">
+    <div class="sh">
+      <div class="sh-left">
+        <h2>📊 Economic Indicators</h2>
+        <p>Leading, Coincident and Lagging composite indexes — Malaysia's early-warning system for economic cycles.</p>
+      </div>
+      <div class="sh-right">
+        <span class="badge bg-g">Live Data</span>
+        <span class="src">economic_indicators · DOSM</span>
+      </div>
+    </div>
+
+    <div class="g c3">
+      <div class="card">
+        <div class="c-label">Leading Index (Latest)</div>
+        <div class="c-value" id="ind-lead" style="color:var(--gold)"><span class="spin"></span></div>
+        <div class="c-note">Forecasts economy 6–9 months ahead. Above 100 = expansion.</div>
+      </div>
+      <div class="card">
+        <div class="c-label">Coincident Index (Latest)</div>
+        <div class="c-value" id="ind-coin" style="color:var(--teal-l)"><span class="spin"></span></div>
+        <div class="c-note">Current economic performance measure. Key for real-time assessment.</div>
+      </div>
+      <div class="card">
+        <div class="c-label">Lagging Index (Latest)</div>
+        <div class="c-value" id="ind-lag" style="color:var(--text-s)"><span class="spin"></span></div>
+        <div class="c-note">Confirms and validates the leading and coincident signals.</div>
+      </div>
+    </div>
+
+    <div class="g c2">
+      <div class="cc span2">
+        <div class="cc-head">
+          <span class="cc-title">Leading & Coincident Index — Monthly (24 months)</span>
+          <span class="dst" id="ind-st"><span class="spin"></span> Loading…</span>
+        </div>
+        <div class="cw" style="height:260px">
+          <div class="lo" id="lo-mei"><span class="spin"></span>Fetching economic indicators…</div>
+          <canvas id="ch-mei"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="g c2">
+      <div class="cc">
+        <div class="cc-head"><span class="cc-title">Diffusion Indexes (Leading & Coincident)</span></div>
+        <div class="cw" style="height:180px">
+          <div class="lo" id="lo-diff"><span class="spin"></span></div>
+          <canvas id="ch-diff"></canvas>
+        </div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><span class="cc-title">Latest 12 Months — Raw Data</span></div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Month</th><th>Leading</th><th>Coincident</th><th>Lagging</th><th>Diffusion (L)</th></tr></thead>
+            <tbody id="ind-tbody"><tr><td colspan="5" style="color:var(--text-xs);padding:1rem;text-align:center"><span class="spin"></span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="g c3">
+      <div class="ib">
+        <h3>📌 Leading Index</h3>
+        <p>Composed of forward-looking components like stock prices, housing approvals, and export orders. A rising leading index signals economic expansion in the coming months.</p>
+      </div>
+      <div class="ib">
+        <h3>📌 Coincident Index</h3>
+        <p>Reflects the current state of the economy — real output, employment, and income. Used to identify the current phase of the business cycle.</p>
+      </div>
+      <div class="ib">
+        <h3>📌 Diffusion Index</h3>
+        <p>A value of 100 means ALL components are rising. A value of 0 means ALL are falling. Values near 50 indicate balanced conditions across the economy.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ HEALTHCARE ═══════ -->
+<div class="panel" id="panel-healthcare">
+  <div class="wrap">
+    <div class="sh">
+      <div class="sh-left">
+        <h2>🏥 Healthcare</h2>
+        <p>Malaysia operates a dual-tier healthcare system — a heavily subsidised public sector accessible to all, and a growing private sector serving ~22% of the population.</p>
+      </div>
+      <div class="sh-right">
+        <span class="badge bg-a">Reference Data</span>
+        <span class="src">MOH Malaysia · DOSM</span>
+      </div>
+    </div>
+    <div class="g c4">
+      <div class="card"><div class="c-label">System Type</div><div class="c-value" style="color:var(--green);font-size:1.2rem">Universal Public</div><div class="c-note">Single-payer public system; outpatient visits from RM1 at govt clinics.</div></div>
+      <div class="card"><div class="c-label">Life Expectancy</div><div class="c-value" style="color:var(--teal-l)">76.7 <span style="font-size:1rem">yrs</span></div><div class="c-note">2023 DOSM. Male: 74.0, Female: 78.7. Among highest in SE Asia.</div></div>
+      <div class="card"><div class="c-label">Doctors per 1,000</div><div class="c-value" style="color:var(--gold)">1.8</div><div class="c-note">Below WHO target of 2.3. Shortage acute in Sabah & Sarawak.</div></div>
+      <div class="card"><div class="c-label">Medical Tourism Rank</div><div class="c-value" style="color:var(--blue-l)">#3</div><div class="c-note">Asia-Pacific. Penang is the hub. Revenue growing ~12%/year.</div></div>
+    </div>
+    <div class="g c2">
+      <div class="cc">
+        <div class="cc-head"><span class="cc-title">Healthcare Coverage & Access</span></div>
+        <div style="margin-top:.5rem">
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Public Hospital Coverage</span><span class="prog-val">78%</span></div><div class="prog-track"><div class="prog-fill pG" data-w="78"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Private Healthcare Users</span><span class="prog-val">22%</span></div><div class="prog-track"><div class="prog-fill pB" data-w="22"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Rural Access (East Malaysia)</span><span class="prog-val">62%</span></div><div class="prog-track"><div class="prog-fill pA" data-w="62"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">Telehealth Adoption</span><span class="prog-val">41%</span></div><div class="prog-track"><div class="prog-fill pT" data-w="41"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">COVID-19 Vaccination</span><span class="prog-val">83%</span></div><div class="prog-track"><div class="prog-fill pG" data-w="83"></div></div></div>
+        </div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><span class="cc-title">Healthcare Spending (% of GDP)</span></div>
+        <div class="cw" style="height:220px"><canvas id="ch-health"></canvas></div>
+      </div>
+    </div>
+    <div class="g c2">
+      <div class="ib"><h3>Strengths</h3><div class="pills"><span class="pill pl-g"><span class="pdot"></span>Affordable public care</span><span class="pill pl-g"><span class="pdot"></span>Growing medical tourism</span><span class="pill pl-g"><span class="pdot"></span>High vaccination rate</span><span class="pill pl-g"><span class="pdot"></span>Strong pharma sector</span></div></div>
+      <div class="ib"><h3>Challenges</h3><div class="pills"><span class="pill pl-r"><span class="pdot"></span>Rural doctor shortage</span><span class="pill pl-a"><span class="pdot"></span>Aging population</span><span class="pill pl-r"><span class="pdot"></span>Rising NCD burden</span><span class="pill pl-a"><span class="pdot"></span>Urban-rural care gap</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ TRADE ═══════ -->
+<div class="panel" id="panel-trade">
+  <div class="wrap">
+    <div class="sh">
+      <div class="sh-left">
+        <h2>🚢 Trade & Exports</h2>
+        <p>Malaysia has maintained a trade surplus for 26 consecutive years. E&E products and semiconductors dominate exports.</p>
+      </div>
+      <div class="sh-right">
+        <span class="badge bg-a">Reference Data</span>
+        <span class="src">DOSM · MATRADE 2024</span>
+      </div>
+    </div>
+    <div class="g c3">
+      <div class="card"><div class="c-label">Total Exports (2024)</div><div class="c-value" style="color:var(--green)">RM 1.52T</div><div class="c-note">≈ USD 329B. E&E products = 38%. 3rd largest semiconductor exporter globally.</div></div>
+      <div class="card"><div class="c-label">Trade Surplus</div><div class="c-value" style="color:var(--gold)">RM 136B</div><div class="c-note">26 consecutive years of surplus. Consistent since 1998 Asian Financial Crisis.</div></div>
+      <div class="card"><div class="c-label">Semiconductor Rank</div><div class="c-value" style="color:var(--teal-l)">#3</div><div class="c-note">3rd globally. Penang = "Silicon Island". Intel, Infineon, NXP, Bosch based here.</div></div>
+    </div>
+    <div class="g c2">
+      <div class="cc">
+        <div class="cc-head"><span class="cc-title">Export Composition (% of Total)</span></div>
+        <div class="cw" style="height:240px"><canvas id="ch-exports"></canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><span class="cc-title">Top Trading Partners (Export Share %)</span></div>
+        <div style="margin-top:.8rem">
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">🇸🇬 Singapore</span><span class="prog-val">14.2%</span></div><div class="prog-track"><div class="prog-fill pT" data-w="71"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">🇨🇳 China</span><span class="prog-val">13.8%</span></div><div class="prog-track"><div class="prog-fill pR" data-w="69"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">🇺🇸 United States</span><span class="prog-val">11.1%</span></div><div class="prog-track"><div class="prog-fill pB" data-w="55"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">🇯🇵 Japan</span><span class="prog-val">6.4%</span></div><div class="prog-track"><div class="prog-fill pA" data-w="32"></div></div></div>
+          <div class="prog-item"><div class="prog-head"><span class="prog-name">🇰🇷 South Korea</span><span class="prog-val">3.8%</span></div><div class="prog-track"><div class="prog-fill pG" data-w="19"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ ABOUT ═══════ -->
+<div class="panel" id="panel-about">
+  <div class="wrap">
+    <div class="sh"><div class="sh-left"><h2>ℹ️ About MyEkonomi</h2><p>Open, public, and fully powered by Malaysia's official government data.</p></div></div>
+    <div class="g c2" style="margin-bottom:1rem">
+      <div class="ib">
+        <h3>What is MyEkonomi?</h3>
+        <p>MyEkonomi is a free, public-facing economic dashboard for Malaysia. It fetches data directly from <strong style="color:var(--gold)">OpenDOSM</strong> — the official open data platform of the Department of Statistics Malaysia — using their public REST API. All data is licensed under <strong>CC BY 4.0</strong>, meaning it is freely shareable and reusable with attribution.</p>
+      </div>
+      <div class="ib">
+        <h3>Data Update Frequency</h3>
+        <p>Different datasets update at different frequencies:<br><br>
+        • <strong style="color:var(--green)">Fuel prices</strong> — Weekly (every Wednesday)<br>
+        • <strong style="color:var(--teal-l)">Labour force</strong> — Monthly<br>
+        • <strong style="color:var(--gold)">CPI / Inflation</strong> — Monthly<br>
+        • <strong style="color:var(--blue-l)">Economic Indicators</strong> — Monthly<br>
+        • <strong style="color:var(--text-s)">GDP data</strong> — Annual / Quarterly</p>
+      </div>
+    </div>
+    <div style="margin-bottom:.8rem;font-size:.8rem;font-weight:600;color:var(--text-s)">Live Datasets Used in This Dashboard</div>
+    <div class="dataset-grid">
+      <div class="ds-card"><h4>Annual GDP & GNI (Nominal)</h4><p>Long time-series nominal GDP & GNI from 1947 to present.</p><div class="ds-id">id: gdp_gni_annual_nominal</div></div>
+      <div class="ds-card"><h4>Annual GDP & GNI (Real)</h4><p>Real GDP at constant 2015 prices, including per capita values.</p><div class="ds-id">id: gdp_gni_annual_real</div></div>
+      <div class="ds-card"><h4>Monthly Labour Force</h4><p>Unemployment rate, LFP, employed & labour force monthly.</p><div class="ds-id">id: lfs_month</div></div>
+      <div class="ds-card"><h4>Economic Indicators (MEI)</h4><p>Leading, coincident, lagging & diffusion indexes monthly.</p><div class="ds-id">id: economic_indicators</div></div>
+      <div class="ds-card"><h4>Fuel Price (Weekly)</h4><p>Weekly retail prices of RON95, RON97 & diesel.</p><div class="ds-id">id: fuelprice</div></div>
+      <div class="ds-card"><h4>Core CPI Inflation</h4><p>Monthly core CPI inflation by division (excl. volatile items).</p><div class="ds-id">id: cpi_core_inflation</div></div>
+    </div>
+    <div class="ib" style="margin-top:1rem">
+      <h3>Data Sources & License</h3>
+      <p>All data is sourced from <a href="https://open.dosm.gov.my" target="_blank" style="color:var(--gold)">open.dosm.gov.my</a> and <a href="https://api.data.gov.my" target="_blank" style="color:var(--gold)">api.data.gov.my</a>. Supplementary reference data (healthcare, trade) comes from MOH Malaysia and MATRADE 2024 reports. All DOSM data is released under the <strong>Creative Commons Attribution 4.0 International (CC BY 4.0)</strong> license.</p>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>Data: <a href="https://open.dosm.gov.my" target="_blank">OpenDOSM</a> · <a href="https://api.data.gov.my" target="_blank">api.data.gov.my</a> · MOH Malaysia · MATRADE · CC BY 4.0</p>
+  <div class="sync-info">
+    <span class="live-dot" style="width:5px;height:5px"></span>
+    <p>Last synced: <span id="sync-t" style="color:var(--gold)">—</span></p>
+  </div>
+</footer>
+
+<script>
+// ─── CHART DEFAULTS ───────────────────────────────────
+Chart.defaults.color='#64748b';
+Chart.defaults.borderColor='rgba(255,255,255,0.07)';
+Chart.defaults.font.family='Inter';
+Chart.defaults.plugins.legend.labels.boxWidth=12;
+Chart.defaults.plugins.legend.labels.font={size:11};
+
+const C={gold:'#c9a84c',goldL:'#f2d77e',teal:'#14b8a6',tealL:'#5eead4',green:'#22c55e',greenL:'#4ade80',red:'#ef4444',redL:'#f87171',blue:'#3b82f6',blueL:'#93c5fd',purple:'#a855f7',muted:'#64748b'};
+const API='https://api.data.gov.my/data-catalogue';
+
+function mk(id,cfg){const el=document.getElementById(id);if(!el)return;try{return new Chart(el,cfg)}catch(e){}}
+function $(id){return document.getElementById(id)}
+function hide(id){const el=$(id);if(el)el.classList.add('h')}
+function show(id){const el=$(id);if(el)el.classList.remove('h')}
+function set(id,v){const el=$(id);if(el)el.textContent=v}
+function setHTML(id,v){const el=$(id);if(el)el.innerHTML=v}
+
+function fmt(n,dec=0){return Number(n).toLocaleString('en-MY',{maximumFractionDigits:dec,minimumFractionDigits:dec})}
+function fmtB(n){return'RM '+fmt(n/1000,1)+'B'}
+
+async function dosm(id,extra=''){
+  const r=await fetch(`${API}?id=${id}&limit=60${extra}`);
+  if(!r.ok)throw new Error('API failed');
+  return r.json();
+}
+
+// ─── TABS ─────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    $('panel-'+b.dataset.p).classList.add('on');
+    setTimeout(animBars,120);
+  });
+});
+function animBars(){document.querySelectorAll('.panel.on .prog-fill').forEach(f=>f.style.width=f.dataset.w+'%')}
+setTimeout(animBars,400);
+
+// ─── GDP ──────────────────────────────────────────────
+async function loadGDP(){
+  try{
+    const [nom,real]=await Promise.all([
+      dosm('gdp_gni_annual_nominal','&sort=-date'),
+      dosm('gdp_gni_annual_real','&sort=-date')
+    ]);
+    const n=nom[0],r=real[0];
+
+    set('gdp-nom','RM '+fmt(n.gdp/1000,0)+'B');
+    set('gdp-nom-note','Nominal GDP '+n.date.slice(0,4));
+    set('gdp-real','RM '+fmt(r.gdp/1000,0)+'B');
+    set('gdp-real-note','Real GDP at 2015 prices, '+r.date.slice(0,4));
+    set('gni-nom','RM '+fmt(n.gni/1000,0)+'B');
+    set('gni-nom-note','Nominal GNI '+n.date.slice(0,4));
+    const cap=n.gni_capita||n.gni_per_capita||0;
+    set('gni-cap','RM '+fmt(cap,0));
+    set('gni-cap-note','GNI per capita '+n.date.slice(0,4));
+
+    set('k-gdp', r.growth?Number(r.growth).toFixed(1)+'%':fmt(r.gdp/1000,0)+'B');
+    set('k-gdp-s','↑ Real GDP '+r.date.slice(0,4));
+
+    const nomR=nom.slice(0,20).reverse();
+    const realR=real.slice(0,20).reverse();
+    const nomLabels=nomR.map(x=>x.date.slice(0,4));
+
+    setHTML('gdp-st','<span class="ok">✓ Updated '+n.date.slice(0,4)+'</span>');
+    setHTML('gdp-real-st','<span class="ok">✓ '+r.date.slice(0,4)+'</span>');
+    hide('lo-gdp-nom');hide('lo-gdp-real');
+
+    mk('ch-gdp-nom',{type:'bar',data:{labels:nomLabels,datasets:[{label:'Nominal GDP (RM M)',data:nomR.map(x=>x.gdp),backgroundColor:'rgba(34,197,94,.4)',borderColor:C.green,borderWidth:1.5,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9},callback:v=>'RM '+fmt(v/1000,0)+'B'}}}}});
+
+    // compute growth rates
+    const growthData=realR.map((x,i)=>{
+      if(i===0)return null;
+      const prev=realR[i-1];
+      if(!prev||!prev.gdp||!x.gdp)return null;
+      return +((x.gdp-prev.gdp)/prev.gdp*100).toFixed(2);
+    });
+    mk('ch-gdp-real',{type:'line',data:{labels:nomLabels,datasets:[{label:'Real GDP Growth %',data:growthData,borderColor:C.teal,backgroundColor:'rgba(20,184,166,.1)',tension:.4,fill:true,pointRadius:3,pointBackgroundColor:C.teal}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9},callback:v=>v+'%'}}}}});
+
+    // Table — merge by date
+    const nomMap={};nom.forEach(x=>nomMap[x.date]=x);
+    const realMap={};real.forEach(x=>realMap[x.date]=x);
+    const dates=[...new Set([...nom.map(x=>x.date),...real.map(x=>x.date)])].sort().reverse().slice(0,20);
+    $('gdp-tbody').innerHTML=dates.map(d=>{
+      const nm=nomMap[d]||{};const re=realMap[d]||{};
+      return`<tr>
+        <td>${d.slice(0,4)}</td>
+        <td style="color:var(--green-l)">${nm.gdp?'RM '+fmt(nm.gdp,0):'—'}</td>
+        <td style="color:var(--teal-l)">${re.gdp?'RM '+fmt(re.gdp,0):'—'}</td>
+        <td style="color:var(--gold)">${nm.gni?'RM '+fmt(nm.gni,0):'—'}</td>
+        <td style="color:var(--blue-l)">${nm.gni_capita||nm.gni_per_capita?'RM '+fmt(nm.gni_capita||nm.gni_per_capita,0):'—'}</td>
+      </tr>`;
+    }).join('');
+    set('gdp-tbl-st','');
+
+  }catch(e){
+    setHTML('gdp-st','<span class="err">⚠ Could not load GDP data</span>');
+    hide('lo-gdp-nom');hide('lo-gdp-real');
+    set('gdp-nom','—');set('gdp-real','—');set('gni-nom','—');set('gni-cap','—');
+    set('k-gdp','5.1%');set('k-gdp-s','↑ 2024 estimate');
+  }
+}
+
+// ─── LABOUR ───────────────────────────────────────────
+async function loadLabour(){
+  try{
+    const data=await dosm('lfs_month','&sort=-date');
+    const latest=data[0];
+    const rows=data.slice(0,24).reverse();
+
+    set('lab-unemp',Number(latest.u_rate).toFixed(1)+'%');
+    set('lab-unemp-note','as of '+latest.date.slice(0,7));
+    set('lab-lf',fmt(latest.lf/1000,1)+'M');
+    set('lab-lf-note',fmt(latest.lf,0)+' thousand');
+    set('lab-lfp',Number(latest.lfp_rate).toFixed(1)+'%');
+    set('lab-lfp-note','Labour Force Participation');
+    set('lab-emp',fmt(latest.employed/1000,1)+'M');
+    set('lab-emp-note',fmt(latest.employed,0)+' thousand');
+
+    set('k-unemp',Number(latest.u_rate).toFixed(1)+'%');
+    set('k-unemp-s','↑ as of '+latest.date.slice(0,7));
+    set('k-lfp',Number(latest.lfp_rate).toFixed(1)+'%');
+    set('k-lfp-s','as of '+latest.date.slice(0,7));
+
+    const labels=rows.map(r=>r.date.slice(0,7));
+    setHTML('lab-st','<span class="ok">✓ Updated '+latest.date.slice(0,7)+'</span>');
+    hide('lo-lab');hide('lo-lfp');hide('lo-emp-ts');
+
+    mk('ch-unemp',{type:'line',data:{labels,datasets:[{label:'Unemployment %',data:rows.map(r=>r.u_rate),borderColor:C.red,backgroundColor:'rgba(239,68,68,.1)',tension:.4,fill:true,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9},callback:v=>v+'%'}}}}});
+    mk('ch-lfp',{type:'line',data:{labels,datasets:[{label:'LFP Rate %',data:rows.map(r=>r.lfp_rate),borderColor:C.gold,backgroundColor:'rgba(201,168,76,.1)',tension:.4,fill:true,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9},callback:v=>v+'%'}}}}});
+    mk('ch-emp-ts',{type:'line',data:{labels,datasets:[{label:'Employed (000s)',data:rows.map(r=>r.employed),borderColor:C.teal,backgroundColor:'rgba(20,184,166,.1)',tension:.4,fill:true,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9}}}}}});
+
+    $('lab-tbody').innerHTML=data.slice(0,12).map(r=>`<tr>
+      <td>${r.date.slice(0,7)}</td>
+      <td style="color:var(--green-l)">${Number(r.u_rate).toFixed(1)}%</td>
+      <td style="color:var(--gold)">${Number(r.lfp_rate).toFixed(1)}%</td>
+      <td style="color:var(--teal-l)">${fmt(r.employed,0)}</td>
+      <td style="color:var(--text-s)">${fmt(r.lf,0)}</td>
+    </tr>`).join('');
+
+  }catch(e){
+    setHTML('lab-st','<span class="err">⚠ Data unavailable</span>');
+    hide('lo-lab');hide('lo-lfp');hide('lo-emp-ts');
+    set('k-unemp','3.3%');set('k-unemp-s','↓ 2024 estimate');
+    set('k-lfp','70.8%');set('k-lfp-s','2024 estimate');
+    set('lab-unemp','3.3%');set('lab-lf','16.3M');set('lab-lfp','70.8%');set('lab-emp','15.7M');
+    $('lab-tbody').innerHTML='<tr><td colspan="5" style="color:var(--text-xs);padding:1rem;text-align:center">⚠ Live data unavailable</td></tr>';
+  }
+}
+
+// ─── FUEL PRICES ──────────────────────────────────────
+async function loadFuel(){
+  try{
+    const data=await dosm('fuelprice','&sort=-date');
+    const latest=data[0];
+
+    set('k-fuel','RM '+Number(latest.ron95).toFixed(2));
+    set('k-fuel-s','RON95 as of '+latest.date.slice(0,10));
+
+    set('f-95','RM '+Number(latest.ron95).toFixed(2));
+    set('f-97','RM '+Number(latest.ron97).toFixed(2));
+    set('f-die','RM '+Number(latest.diesel).toFixed(2));
+    ['f-95-d','f-97-d','f-die-d'].forEach(id=>set(id,'Week of '+latest.date.slice(0,10)));
+
+    setHTML('fuel-st','<span class="ok">✓ '+latest.date.slice(0,10)+'</span>');
+    setHTML('fuel-chart-st','<span class="ok">✓</span>');
+    hide('lo-fuel');
+
+    const rows=data.slice(0,52).reverse();
+    const labels=rows.map(r=>r.date.slice(0,10));
+    mk('ch-fuel',{type:'line',data:{labels,datasets:[
+      {label:'RON95',data:rows.map(r=>r.ron95),borderColor:C.gold,backgroundColor:'rgba(201,168,76,.1)',tension:.3,fill:true,pointRadius:1},
+      {label:'Diesel',data:rows.map(r=>r.diesel),borderColor:C.teal,tension:.3,pointRadius:1}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top'}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9},callback:v=>'RM '+v}}}}});
+
+  }catch(e){
+    setHTML('fuel-st','<span class="err">⚠ Unavailable</span>');
+    hide('lo-fuel');
+    set('k-fuel','RM 2.05');set('k-fuel-s','RON95 (est.)');
+    set('f-95','RM 2.05');set('f-97','RM 3.47');set('f-die','RM 2.15');
+    ['f-95-d','f-97-d','f-die-d'].forEach(id=>set(id,'Live data unavailable'));
+  }
+}
+
+// ─── CPI INFLATION ────────────────────────────────────
+async function loadCPI(){
+  try{
+    // filter to 'overall' division only
+    const data=await dosm('cpi_core_inflation','&sort=-date&division=overall');
+    hide('lo-cpi');
+    if(!data||!data.length)throw new Error('no data');
+
+    const rows=data.slice(0,24).reverse();
+    const labels=rows.map(r=>r.date.slice(0,7));
+    setHTML('cpi-st','<span class="ok">✓ '+data[0].date.slice(0,7)+'</span>');
+
+    mk('ch-cpi',{type:'line',data:{labels,datasets:[{label:'Core CPI Inflation %',data:rows.map(r=>r.inflation||r.value||null),borderColor:C.goldL,backgroundColor:'rgba(242,215,126,.1)',tension:.4,fill:true,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9},callback:v=>v+'%'}}}}});
+  }catch(e){
+    hide('lo-cpi');
+    setHTML('cpi-st','<span class="err">⚠ Est. data</span>');
+    mk('ch-cpi',{type:'line',data:{labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m=>m+' 24'),datasets:[{label:'Core CPI % (est)',data:[1.7,1.8,1.9,2.0,2.1,2.0,1.9,1.8,1.9,1.8,1.7,1.8],borderColor:C.goldL,backgroundColor:'rgba(242,215,126,.1)',tension:.4,fill:true,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9},callback:v=>v+'%'}}}}});
+  }
+}
+
+// ─── ECONOMIC INDICATORS (MEI) ────────────────────────
+async function loadMEI(){
+  try{
+    const data=await dosm('economic_indicators','&sort=-date');
+    const latest=data[0];
+    const rows=data.slice(0,24).reverse();
+
+    set('ind-lead',Number(latest.leading).toFixed(1));
+    set('ind-coin',Number(latest.coincident).toFixed(1));
+    set('ind-lag',Number(latest.lagging).toFixed(1));
+    set('k-lead',Number(latest.leading).toFixed(1));
+    set('k-lead-s','Leading · '+latest.date.slice(0,7));
+    set('k-coin',Number(latest.coincident).toFixed(1));
+    set('k-coin-s','Coincident · '+latest.date.slice(0,7));
+
+    const labels=rows.map(r=>r.date.slice(0,7));
+    setHTML('ind-st','<span class="ok">✓ Updated '+latest.date.slice(0,7)+'</span>');
+    hide('lo-mei');hide('lo-diff');
+
+    mk('ch-mei',{type:'line',data:{labels,datasets:[
+      {label:'Leading Index',data:rows.map(r=>r.leading),borderColor:C.gold,backgroundColor:'rgba(201,168,76,.08)',tension:.4,fill:true,pointRadius:2},
+      {label:'Coincident Index',data:rows.map(r=>r.coincident),borderColor:C.teal,backgroundColor:'rgba(20,184,166,.08)',tension:.4,fill:true,pointRadius:2}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top'}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9}}}}}});
+
+    const d8=rows.slice(-8);
+    mk('ch-diff',{type:'bar',data:{labels:d8.map(r=>r.date.slice(0,7)),datasets:[
+      {label:'Leading Diffusion',data:d8.map(r=>r.leading_diffusion),backgroundColor:'rgba(201,168,76,.5)',borderColor:C.gold,borderWidth:1},
+      {label:'Coincident Diffusion',data:d8.map(r=>r.coincident_diffusion),backgroundColor:'rgba(20,184,166,.4)',borderColor:C.teal,borderWidth:1}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top'}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{min:0,max:100,grid:{color:'rgba(255,255,255,.05)'},ticks:{font:{size:9}}}}}});
+
+    $('ind-tbody').innerHTML=data.slice(0,12).map(r=>`<tr>
+      <td>${r.date.slice(0,7)}</td>
+      <td style="color:var(--gold)">${Number(r.leading).toFixed(1)}</td>
+      <td style="color:var(--teal-l)">${Number(r.coincident).toFixed(1)}</td>
+      <td style="color:var(--text-s)">${Number(r.lagging).toFixed(1)}</td>
+      <td style="color:var(--blue-l)">${Number(r.leading_diffusion).toFixed(1)}</td>
+    </tr>`).join('');
+
+  }catch(e){
+    setHTML('ind-st','<span class="err">⚠ Unavailable</span>');
+    hide('lo-mei');hide('lo-diff');
+    set('k-lead','—');set('k-coin','—');
+    set('ind-lead','—');set('ind-coin','—');set('ind-lag','—');
+  }
+}
+
+// ─── STATIC CHARTS ────────────────────────────────────
+function staticCharts(){
+  mk('ch-health',{type:'bar',data:{labels:['2019','2020','2021','2022','2023','2024e'],datasets:[{label:'Health Spend % GDP',data:[3.8,4.2,4.1,4.0,4.1,4.3],backgroundColor:'rgba(20,184,166,.4)',borderColor:C.teal,borderWidth:1.5,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{min:3,grid:{color:'rgba(255,255,255,.05)'},ticks:{callback:v=>v+'%'}}}}});
+  mk('ch-exports',{type:'bar',data:{labels:['E&E Products','Mineral Fuels','Palm Oil','Chemicals','Machinery','Other'],datasets:[{label:'% of Exports',data:[38,16,7,6,5,28],backgroundColor:[C.gold,C.red,C.green,C.teal,C.blue,C.muted],borderRadius:5,borderWidth:0}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.05)'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+}
+
+// ─── INIT ─────────────────────────────────────────────
+async function init(){
+  staticCharts();
+  await Promise.allSettled([loadGDP(),loadLabour(),loadFuel(),loadCPI(),loadMEI()]);
+  set('sync-t',new Date().toLocaleString('en-MY',{dateStyle:'medium',timeStyle:'short'}));
+}
+
+init();
+</script>
+</body>
+</html>
